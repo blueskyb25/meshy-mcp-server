@@ -1,3 +1,4 @@
+
 #!/usr/bin/env node
 /**
  * Meshy MCP Server
@@ -5,6 +6,8 @@
  * Model Context Protocol server for Meshy AI's 3D generation platform.
  * Enables AI agents to create and manage 3D models programmatically.
  */
+
+import { createHash, timingSafeEqual } from "node:crypto";
 
 // Load environment variables from .env file
 import dotenv from "dotenv";
@@ -46,11 +49,9 @@ const server = new McpServer(
  */
 async function initializeServer(clientInfo?: () => HostInfo | undefined) {
   try {
-    // Create Meshy API client (the key is checked on the first tool call)
     const meshyClient = createMeshyClient(clientInfo);
     console.error("✓ Meshy client initialized");
 
-    // Register all tools
     console.error("Registering MCP tools...");
 
     registerGenerationTools(server, meshyClient);
@@ -90,18 +91,6 @@ async function initializeServer(clientInfo?: () => HostInfo | undefined) {
 
 /**
  * Strip the `$schema` dialect marker from every tool schema we publish.
- *
- * The SDK converts our Zod schemas with zod-to-json-schema, which stamps
- * `"$schema": "http://json-schema.org/draft-07/schema#"` on both inputSchema
- * and outputSchema — with no way to override it (verified on SDK 1.27-1.30,
- * Zod 3 and 4). Claude Desktop compiles tool schemas with an Ajv configured
- * for JSON Schema 2020-12 only, so it rejects every tool carrying that marker:
- * "Tool 'x' has an invalid outputSchema: JSON Schema declares an unsupported
- * dialect". Our schemas use nothing dialect-specific, so dropping the marker
- * lets each client validate under its own default (2020-12) and keeps the
- * schemas themselves intact.
- *
- * Remove this once the SDK stops hardcoding draft-07.
  */
 function stripSchemaDialect(transport: Transport): Transport {
   const send = transport.send.bind(transport);
@@ -124,7 +113,6 @@ function stripSchemaDialect(transport: Transport): Transport {
 async function runStdio() {
   console.error("Starting Meshy MCP Server (stdio mode)...");
 
-  // One client per process, so its handshake clientInfo names the host.
   await initializeServer(() => server.server.getClientVersion());
 
   const transport = new StdioServerTransport();
@@ -140,21 +128,50 @@ async function runStdio() {
 async function runHTTP() {
   console.error("Starting Meshy MCP Server (HTTP mode)...");
 
-  // No clientInfo: one stateless server answers every caller, so the last
-  // handshake seen need not be the caller's. MESHY_CLIENT still applies.
   await initializeServer();
 
   const app = express();
-  // Allow large request bodies so callers can pass `model_url` as a `data:` URI
-  // for the print/analyze, print/repair, and print/multi-color tools. Meshy
-  // accepts a data: URI model up to 100 MB (an http(s) URL up to 400 MB, which
-  // never passes through this body). The cap applies to the whole JSON body, so
-  // with base64 an inline model tops out near 75 MB.
+
   app.use(express.json({ limit: "100mb" }));
 
   // Health check endpoint
   app.get("/health", (req, res) => {
     res.json({ status: "ok", server: "meshy-mcp-server", version: VERSION });
+  });
+
+  // Protect every MCP HTTP method with a private bearer token.
+  app.use("/mcp", (req, res, next) => {
+    const expectedToken = process.env.MCP_ACCESS_TOKEN?.trim();
+
+    if (!expectedToken) {
+      console.error("MCP_ACCESS_TOKEN is not configured");
+      res.status(503).json({ error: "MCP authentication is not configured" });
+      return;
+    }
+
+    const authHeader = req.header("authorization") ?? "";
+    const match = authHeader.match(/^Bearer\s+(.+)$/i);
+    const suppliedToken = match?.[1]?.trim() ?? "";
+
+    if (!suppliedToken) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+
+    const expectedHash = createHash("sha256")
+      .update(expectedToken)
+      .digest();
+
+    const suppliedHash = createHash("sha256")
+      .update(suppliedToken)
+      .digest();
+
+    if (!timingSafeEqual(expectedHash, suppliedHash)) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+
+    next();
   });
 
   // MCP endpoint
@@ -173,7 +190,7 @@ async function runHTTP() {
   const port = parseInt(process.env.PORT || "3000", 10);
 
   app.listen(port, () => {
-    console.error(`✓ Meshy MCP Server running on http://localhost:${port}/mcp`);
+    console.error(`✓ Meshy MCP Server running on port ${port}`);
     console.error(`Health check: http://localhost:${port}/health`);
   });
 }
