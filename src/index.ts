@@ -1,4 +1,3 @@
-
 #!/usr/bin/env node
 /**
  * Meshy MCP Server
