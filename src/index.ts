@@ -33,6 +33,8 @@ import { registerImageTools } from "./tools/image.js";
 import { registerPrintingTools } from "./tools/printing.js";
 import { registerCreativeLabTools } from "./tools/creative-lab.js";
 import { registerBalanceTool } from "./tools/balance.js";
+import { GeminiImageClient } from "./services/gemini-image-client.js";
+import { registerGeminiImageTools } from "./tools/gemini-image.js";
 import { MESHY_INSTRUCTIONS } from "./instructions.js";
 import { VERSION } from "./version.js";
 
@@ -80,7 +82,10 @@ async function initializeServer(clientInfo?: () => HostInfo | undefined) {
     registerBalanceTool(server, meshyClient);
     console.error("  ✓ Account tools registered (check-balance, list-usage)");
 
-    console.error("✓ Server initialized successfully with 28 tools");
+    registerGeminiImageTools(server, new GeminiImageClient());
+    console.error("  ✓ Google Gemini image tool registered (google_generate_image)");
+
+    console.error("✓ Server initialized successfully with 29 tools");
     return meshyClient;
   } catch (error) {
     console.error("Failed to initialize server:", error);

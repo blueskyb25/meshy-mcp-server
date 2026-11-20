@@ -2,6 +2,22 @@
 
 ## [Unreleased]
 
+## [0.6.13] - 2026-11-20
+
+### Added
+
+- Optional Google AI Studio image generation through the Gemini Interactions REST API.
+  `google_generate_image` uses `gemini-3.1-flash-lite-image` by default, with Flash Image
+  and Pro Image available for higher-resolution work. This integration is independent of Meshy
+  credits and does not use the discounted Batch API.
+- Local tests for the Gemini REST request, response parsing, quota errors, input validation,
+  and MCP image response.
+
+### Changed
+
+- The Gemini client uses Google's current documented `/v1beta/interactions` endpoint and
+  `response_format` structure instead of the older `generateContent` request shape.
+
 ## [0.6.12] - 2026-11-17
 
 ### Fixed

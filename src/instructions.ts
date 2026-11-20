@@ -30,6 +30,20 @@ Before calling ANY tool that costs credits, ask which ai_model to use where ther
 | meshy_text_to_image / meshy_image_to_image | nano-banana 3, nano-banana-2 6, nano-banana-2-lite 3, nano-banana-2-1 4, nano-banana-pro 9; GPT Image models (gpt-image-2, gpt-image-2-5-flare, gpt-image-2-5-sunburst) 9 text / 12 image |
 | analyze printability, balance, usage, animation library, status, list, download | free |
 
+## Google Gemini Image Generation
+
+Use google_generate_image for a standalone 2D image when the user wants Google AI Studio generation and does not specifically require a Meshy image-task ID. It is separate from Meshy credits and returns the image inline to the MCP client; this version does not automatically turn the Google result into a Meshy image task or persist it as a project file.
+
+Before spending Google API funds, identify the model and disclose its approximate image-output price; wait for the user's confirmation unless the user has already authorized a defined image batch and budget. The synchronous tool uses Standard pricing (not Batch):
+
+| Google model | Image output price (USD) | Limits |
+|---|---:|---|
+| gemini-3.1-flash-lite-image (default) | about $0.0336 per 1K image | 1K only |
+| gemini-3.1-flash-image | about $0.067 per 1K; $0.101 per 2K; $0.151 per 4K | 1K/2K/4K |
+| gemini-3-pro-image | about $0.134 per 1K/2K; $0.24 per 4K | 1K/2K/4K |
+
+These are image-output estimates; prompt/input usage may add a small amount. Recheck Google's current pricing before large batches. A timed-out request may still be billable; do not retry blindly. For an image that must remain a Meshy-native task or flow directly into Meshy's image-to-3D pipeline by task ID, use meshy_text_to_image instead.
+
 | image / multi-image ai_model | mesh only | + 2K/4K texture | + 8K texture |
 |---|---|---|---|
 | meshy-7.1 / latest / meshy-6 (and deprecated meshy-7) | 20 | 30 | 35 |

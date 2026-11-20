@@ -4,7 +4,7 @@
 
 ## Features
 
-28 tools covering the full Meshy API:
+29 tools: 28 Meshy tools plus an optional Google Gemini image-generation tool:
 
 | Category | Tools |
 |----------|-------|
@@ -13,7 +13,8 @@
 | **Post-Processing** | `meshy_remesh`, `meshy_retexture` |
 | **Rigging & Animation** | `meshy_rig`, `meshy_animate`, `meshy_text_to_motion`, `meshy_list_animations` |
 | **Conversion** | `meshy_convert`, `meshy_resize`, `meshy_uv_unwrap` |
-| **Image Generation** | `meshy_text_to_image`, `meshy_image_to_image` |
+| **Image Generation** | `meshy_text_to_image`, `meshy_image_to_image` (Meshy credits) |
+| **Google Image Generation** | `google_generate_image` (Google AI Studio billing; separate from Meshy) |
 | **Task Management** | `meshy_get_task_status`, `meshy_list_tasks`, `meshy_cancel_task`, `meshy_download_model` |
 | **Workspace** | `meshy_list_models` |
 | **3D Printing** | `meshy_send_to_slicer`, `meshy_analyze_printability`, `meshy_repair_printability`, `meshy_process_multicolor`, `meshy_auto_split` |
@@ -36,6 +37,10 @@
 - **Text to Motion (v0.6.3)**: generate a motion clip from a description (`prime` FBX, 10 credits / `swift` BVH, 3 credits) and apply it to a rigged character
 - **Creative Lab**: One tool — a photo → a finished, print-ready product. **9 products**: figure, lamp, keychain (with a printed `name_text`), fridge-magnet, vinyl-figure, brick-figure, keycap, and (v0.6.3) fidget-pixel and fidget-collapsible. Runs the whole pipeline and returns only the final 3D model; build options and output format are configurable
 - **Format & Size Utilities**: `convert` (format conversion incl. 3MF, 1 credit), `resize` (real-world dimensions, 1 credit), `uv_unwrap` (clean UV layout for external texturing, 5 credits)
+- **Google Gemini image generation**: optional `GEMINI_API_KEY` enables `google_generate_image`, using `gemini-3.1-flash-lite-image` by default, or `gemini-3.1-flash-image` / `gemini-3-pro-image`. This uses Google AI Studio directly and does not consume Meshy credits. The tool returns the generated image to the MCP client. The synchronous tool uses standard API pricing, not discounted Batch pricing.
+  - Configure `GEMINI_API_KEY` in the server environment (Render → service → Environment). The integration calls Google’s documented Interactions REST endpoint with interaction storage disabled (`store: false`) and returns the image block directly through MCP. It is optional: the 28 Meshy tools continue to work without this key.
+  - Flash Lite is limited to 1K; choose Flash Image or Pro Image for 2K/4K. Approximate Standard image-output prices: Flash Lite $0.0336/1K; Flash Image $0.067/1K, $0.101/2K, $0.151/4K; Pro Image $0.134/1K or 2K, $0.24/4K. Prompt/input tokens may add a small cost. This synchronous tool does not use the cheaper Batch tier.
+  - The Google result is returned inline as an image, not persisted as a project file or a Meshy task. Use Meshy's own text-to-image tool when the image must feed directly into a Meshy image-to-3D task by task ID. A timeout may occur after Google has accepted a generation request, so check Google usage before retrying to avoid a possible duplicate charge.
 - **2D Image Models**: `text_to_image` / `image_to_image` support `nano-banana`, `nano-banana-2`, `nano-banana-2-lite`, `nano-banana-2-1`, `nano-banana-pro`, `gpt-image-2`, `gpt-image-2-5-flare` and `gpt-image-2-5-sunburst`, with transparent-background output (`remove_background`). Image-to-image can edit an earlier result by `input_task_id`
 - **3D Printability Suite**:
   - `analyze_printability` — free check (watertight, volume, holes, non-manifold edges, degenerate faces), plus a wall-thickness check for a given printer type and print size (v0.6.3)
