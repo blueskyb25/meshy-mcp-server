@@ -65,12 +65,77 @@ test("Gemini client uses the documented Interactions REST API and extracts image
   }
 });
 
-test("Gemini client rejects missing key without making a request", async () => {
-  const client = new GeminiImageClient("");
-  await assert.rejects(
-    client.generateImage({ prompt: "A test", model: "gemini-3.1-flash-lite-image" }),
-    /GEMINI_API_KEY is not configured/,
-  );
+test("Gemini client with GEMINI_API_KEY sends the key header (flag off)", async () => {
+  const api = await createFakeGoogleApi(200, { status: "completed", steps: [{ type: "model_output", content: [{ type: "image", mime_type: "image/png", data: PNG_BASE64 }] }] });
+  try {
+    const client = new GeminiImageClient("test-google-key", api.endpoint, false);
+    await client.generateImage({ prompt: "A test", model: "gemini-3.1-flash-lite-image" });
+    assert.equal(api.requests.length, 1);
+    assert.equal(api.requests[0].headers["x-goog-api-key"], "test-google-key");
+  } finally {
+    await api.close();
+  }
+});
+
+test("Gemini client keeps sending the local key when proxy mode is also enabled", async () => {
+  const api = await createFakeGoogleApi(200, { status: "completed", steps: [{ type: "model_output", content: [{ type: "image", mime_type: "image/png", data: PNG_BASE64 }] }] });
+  try {
+    const client = new GeminiImageClient("test-google-key", api.endpoint, true);
+    await client.generateImage({ prompt: "A test", model: "gemini-3.1-flash-lite-image" });
+    assert.equal(api.requests[0].headers["x-goog-api-key"], "test-google-key");
+  } finally {
+    await api.close();
+  }
+});
+
+test("Gemini client in proxy mode (no key, header injected) sends the request without x-goog-api-key", async () => {
+  const api = await createFakeGoogleApi(200, { status: "completed", steps: [{ type: "model_output", content: [{ type: "image", mime_type: "image/png", data: PNG_BASE64 }] }] });
+  try {
+    const client = new GeminiImageClient("", api.endpoint, true);
+    const result = await client.generateImage({ prompt: "A test", model: "gemini-3.1-flash-lite-image" });
+    assert.equal(result.data, PNG_BASE64);
+    assert.equal(api.requests.length, 1);
+    assert.equal(Object.hasOwn(api.requests[0].headers, "x-goog-api-key"), false);
+    assert.equal(api.requests[0].headers["api-revision"], "2026-05-20");
+  } finally {
+    await api.close();
+  }
+});
+
+test("Gemini client rejects when neither key nor proxy mode is configured, before any request", async () => {
+  const api = await createFakeGoogleApi(200, {});
+  try {
+    const client = new GeminiImageClient("", api.endpoint, false);
+    await assert.rejects(
+      client.generateImage({ prompt: "A test", model: "gemini-3.1-flash-lite-image" }),
+      /GEMINI_API_KEY is not configured.*GEMINI_API_KEY_HEADER_INJECTED=true/,
+    );
+    assert.equal(api.requests.length, 0);
+  } finally {
+    await api.close();
+  }
+});
+
+test("Gemini client reads GEMINI_API_KEY_HEADER_INJECTED from the environment (true only)", async () => {
+  const saved = { key: process.env.GEMINI_API_KEY, flag: process.env.GEMINI_API_KEY_HEADER_INJECTED };
+  try {
+    delete process.env.GEMINI_API_KEY;
+    for (const [value, allowed] of [["true", true], [" TRUE ", true], ["false", false], ["1", false], [undefined, false]]) {
+      if (value === undefined) delete process.env.GEMINI_API_KEY_HEADER_INJECTED; else process.env.GEMINI_API_KEY_HEADER_INJECTED = value;
+      const api = await createFakeGoogleApi(200, { status: "completed", steps: [{ type: "model_output", content: [{ type: "image", mime_type: "image/png", data: PNG_BASE64 }] }] });
+      try {
+        const client = new GeminiImageClient(undefined, api.endpoint);
+        const attempt = client.generateImage({ prompt: "A test", model: "gemini-3.1-flash-lite-image" });
+        if (allowed) { await attempt; assert.equal(api.requests.length, 1, String(value)); }
+        else { await assert.rejects(attempt, /GEMINI_API_KEY is not configured/, String(value)); assert.equal(api.requests.length, 0); }
+      } finally {
+        await api.close();
+      }
+    }
+  } finally {
+    if (saved.key === undefined) delete process.env.GEMINI_API_KEY; else process.env.GEMINI_API_KEY = saved.key;
+    if (saved.flag === undefined) delete process.env.GEMINI_API_KEY_HEADER_INJECTED; else process.env.GEMINI_API_KEY_HEADER_INJECTED = saved.flag;
+  }
 });
 
 test("Gemini client reports Google quota errors clearly", async () => {

@@ -38,13 +38,22 @@ interface GeminiInteractionResponse {
 
 export class GeminiImageClient {
   private readonly apiKey: string | undefined;
+  private readonly headerInjected: boolean;
 
-  /** endpoint is injectable for deterministic local HTTP tests; production uses Google's endpoint. */
+  /**
+   * endpoint is injectable for deterministic local HTTP tests; production uses Google's endpoint.
+   *
+   * headerInjected is an explicit, non-secret opt-in (GEMINI_API_KEY_HEADER_INJECTED=true) for
+   * deployments where an egress proxy adds the x-goog-api-key header itself (e.g. a network secret),
+   * so the key never has to exist in this process. It only matters when no local apiKey is set.
+   */
   constructor(
     apiKey: string | undefined = process.env.GEMINI_API_KEY,
     private readonly endpoint = DEFAULT_ENDPOINT,
+    headerInjected: boolean = process.env.GEMINI_API_KEY_HEADER_INJECTED?.trim().toLowerCase() === "true",
   ) {
     this.apiKey = apiKey?.trim() || undefined;
+    this.headerInjected = headerInjected;
   }
 
   async generateImage(input: {
@@ -53,8 +62,10 @@ export class GeminiImageClient {
     aspectRatio?: GeminiAspectRatio;
     imageSize?: GeminiImageSize;
   }): Promise<GeminiGeneratedImage> {
-    if (!this.apiKey) {
-      throw new Error("GEMINI_API_KEY is not configured. Add it to Render Environment Variables.");
+    if (!this.apiKey && !this.headerInjected) {
+      throw new Error(
+        "GEMINI_API_KEY is not configured. Set GEMINI_API_KEY, or set GEMINI_API_KEY_HEADER_INJECTED=true if an egress proxy adds the x-goog-api-key header.",
+      );
     }
 
     if (input.model === "gemini-3.1-flash-lite-image" && input.imageSize && input.imageSize !== "1K") {
@@ -79,7 +90,8 @@ export class GeminiImageClient {
         timeout: 180_000,
         headers: {
           "Content-Type": "application/json",
-          "x-goog-api-key": this.apiKey,
+          // In proxy mode the header is intentionally omitted: the proxy supplies it.
+          ...(this.apiKey ? { "x-goog-api-key": this.apiKey } : {}),
           "Api-Revision": "2026-05-20",
         },
         maxContentLength: 30 * 1024 * 1024,
