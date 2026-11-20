@@ -63,7 +63,7 @@ export class GeminiImageClient {
 
     const responseFormat: Record<string, string> = {
       type: "image",
-      mime_type: "image/png",
+      mime_type: "image/jpeg",
     };
     if (input.aspectRatio) responseFormat.aspect_ratio = input.aspectRatio;
     responseFormat.image_size = input.imageSize ?? "1K";

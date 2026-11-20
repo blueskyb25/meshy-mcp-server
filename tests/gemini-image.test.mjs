@@ -57,7 +57,7 @@ test("Gemini client uses the documented Interactions REST API and extracts image
     assert.deepEqual(api.requests[0].body, {
       model: "gemini-3.1-flash-lite-image",
       input: "A small test image",
-      response_format: { type: "image", mime_type: "image/png", aspect_ratio: "1:1", image_size: "1K" },
+      response_format: { type: "image", mime_type: "image/jpeg", aspect_ratio: "1:1", image_size: "1K" },
       store: false,
     });
   } finally {
