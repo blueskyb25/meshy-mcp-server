@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, security/mcp-auth, "feature/**"]
   pull_request:
-    branches: [main]
+    branches: [main, security/mcp-auth]
 
 jobs:
   build:

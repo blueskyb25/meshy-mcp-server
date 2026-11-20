@@ -17,7 +17,7 @@ const SERVER = fileURLToPath(new URL("../dist/index.js", import.meta.url));
 const HERMES = { name: "hermes-agent", version: "0.22.2" };
 
 test("leading token is meshy-mcp-server/<package version>", () => {
-  assert.equal(BASE, "meshy-mcp-server/0.6.12");
+  assert.equal(BASE, "meshy-mcp-server/0.6.13");
   for (const ua of [
     userAgent(),
     userAgent(HERMES),
@@ -196,7 +196,7 @@ async function freePort() {
 async function startHttpServer(env) {
   const port = await freePort();
   const child = spawn(process.execPath, [SERVER], {
-    env: { ...process.env, MESHY_CLIENT: "", TRANSPORT: "http", PORT: String(port), ...env },
+    env: { ...process.env, MESHY_CLIENT: "", TRANSPORT: "http", PORT: String(port), MCP_ACCESS_TOKEN: "test-http-token", ...env },
     stdio: ["ignore", "ignore", "pipe"],
   });
   let log = "";
@@ -215,7 +215,7 @@ async function startHttpServer(env) {
   const post = async (body) => {
     const res = await fetch(`${url}/mcp`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", Accept: "application/json, text/event-stream" },
+      headers: { "Content-Type": "application/json", Accept: "application/json, text/event-stream", Authorization: "Bearer test-http-token" },
       body: JSON.stringify(body),
     });
     return res.status === 202 ? undefined : res.json();
